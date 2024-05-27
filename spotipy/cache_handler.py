@@ -4,7 +4,8 @@ __all__ = [
     'DjangoSessionCacheHandler',
     'FlaskSessionCacheHandler',
     'MemoryCacheHandler',
-    'RedisCacheHandler']
+    'RedisCacheHandler',
+    'FastAPISessionCacheHandler',]
 
 import errno
 import json
@@ -13,6 +14,7 @@ import os
 from spotipy.util import CLIENT_CREDS_ENV_VARS
 
 from redis import RedisError
+from fastapi import Request
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +82,7 @@ class CacheFileHandler(CacheHandler):
             f.close()
             token_info = json.loads(token_info_string)
 
-        except OSError as error:
+        except IOError as error:
             if error.errno == errno.ENOENT:
                 logger.debug("cache does not exist at: %s", self.cache_path)
             else:
@@ -93,7 +95,7 @@ class CacheFileHandler(CacheHandler):
             f = open(self.cache_path, "w")
             f.write(json.dumps(token_info, cls=self.encoder_cls))
             f.close()
-        except OSError:
+        except IOError:
             logger.warning('Couldn\'t write token to cache at: %s',
                            self.cache_path)
 
@@ -208,3 +210,33 @@ class RedisCacheHandler(CacheHandler):
             self.redis.set(self.key, json.dumps(token_info))
         except RedisError as e:
             logger.warning('Error saving token to cache: ' + str(e))
+
+
+class FastAPISessionCacheHandler(CacheHandler):
+    """
+    A cache handler that stores the token info in the session framework
+    provided by FastAPI.
+    """
+
+    def __init__(self, request: Request):
+        """
+        Parameters:
+            * request: Request object provided by FastAPI for every
+            incoming request
+        """
+        self.request = request
+
+    def get_cached_token(self):
+        token_info = None
+        try:
+            token_info = self.request.session['token_info']
+        except KeyError:
+            logger.debug("Token not found in the session")
+
+        return token_info
+
+    def save_token_to_cache(self, token_info):
+        try:
+            self.request.session['token_info'] = token_info
+        except Exception as e:
+            logger.warning("Error saving token to cache: " + str(e))
