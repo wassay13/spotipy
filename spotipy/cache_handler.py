@@ -229,7 +229,7 @@ class FastAPISessionCacheHandler(CacheHandler):
     def get_cached_token(self):
         token_info = None
         try:
-            token_info = self.request.session['token_info']
+            token_info = self.request.session().get('token_info')
         except KeyError:
             logger.debug("Token not found in the session")
 
