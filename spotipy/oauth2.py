@@ -522,7 +522,7 @@ class SpotifyOAuth(SpotifyAuthBase):
 
         payload = {
             "redirect_uri": self.redirect_uri,
-            "code": code or self.get_auth_response(),
+            "code": code,# or self.get_auth_response(),
             "grant_type": "authorization_code",
         }
         if self.scope:
